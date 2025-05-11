@@ -295,7 +295,7 @@ BTCPayServer/wwwroot/bundles/*
 Production/.env
 .env
 .vscode/
-*docker-compose.generated.yml
+# *docker-compose.generated.yml
 
 Generated/chatwoot_config.env
 Generated/error
