@@ -1,0 +1,153 @@
+version: "3.8"
+
+services:
+# ─────────────────────────────  CORE  ─────────────────────────────
+  bitcoind:
+    image: btcpayserver/bitcoin:27.1
+    container_name: btcpayserver_bitcoind
+    restart: unless-stopped
+    environment:
+      BITCOIN_NETWORK: ${NBITCOIN_NETWORK:-mainnet}
+      CREATE_WALLET: "false"
+      BITCOIN_WALLETDIR: "/walletdata"
+      BITCOIN_EXTRA_ARGS: |
+        rpcport=43782
+        rpcbind=0.0.0.0:43782
+        rpcallowip=0.0.0.0/0
+        port=39388
+        whitelist=0.0.0.0/0
+        maxmempool=500
+        prune=50000
+        mempoolfullrbf=1
+    volumes:
+      - bitcoin_datadir:/data
+      - bitcoin_wallet_datadir:/walletdata
+    expose: [ "43782", "39388" ]
+    ports:
+      - "8332:43782"   # RPC to host
+      - "8333:39388"   # P2P to host
+
+  nbxplorer:
+    image: nicolasdorier/nbxplorer:2.5.25
+    container_name: generated_nbxplorer_1
+    restart: unless-stopped
+    environment:
+      NBXPLORER_NETWORK: ${NBITCOIN_NETWORK:-mainnet}
+      NBXPLORER_BIND: 0.0.0.0:32838
+      NBXPLORER_TRIMEVENTS: 10000
+      NBXPLORER_SIGNALFILESDIR: /datadir
+      NBXPLORER_POSTGRES: User ID=postgres;Host=postgres;Port=5432;Application Name=nbxplorer;MaxPoolSize=20;Database=nbxplorer${NBITCOIN_NETWORK:-mainnet}
+      NBXPLORER_CHAINS: "btc"
+      NBXPLORER_BTCRPCURL: http://bitcoind:43782/
+      NBXPLORER_BTCNODEENDPOINT: bitcoind:39388
+    volumes:
+      - nbxplorer_datadir:/datadir
+      - bitcoin_datadir:/root/.bitcoin
+    links:
+      - postgres
+    expose: ["32838"]
+    ports:
+      - "32838:32838"   # RPC/WS to host
+
+  clightning_bitcoin:
+    image: btcpayserver/lightning:v25.02
+    container_name: btcpayserver_clightning_bitcoin
+    restart: unless-stopped
+    environment:
+      LIGHTNINGD_NETWORK: ${NBITCOIN_NETWORK:-mainnet}
+      LIGHTNINGD_CHAIN: btc
+      LIGHTNINGD_ALIAS: ${LIGHTNING_ALIAS}
+      LIGHTNINGD_ANNOUNCEADDR: ${BTCPAY_ANNOUNCEABLE_HOST}
+      LIGHTNINGD_PORT: 9735
+      LIGHTNINGD_READY_FILE: /root/.nbxplorer/btc_fully_synched
+      LIGHTNINGD_OPT: |
+        bitcoin-datadir=/etc/bitcoin
+        bitcoin-rpcconnect=bitcoind
+        experimental-offers
+        database-upgrade=true
+        rpc-file-mode=0666
+        clnrest-port=3010
+        clnrest-protocol=http
+        clnrest-host=0.0.0.0
+        grpc-port=9736
+    volumes:
+      - clightning_bitcoin_datadir:/root/.lightning
+      - bitcoin_datadir:/etc/bitcoin
+      - nbxplorer_datadir:/root/.nbxplorer
+    links:
+      - bitcoind
+    expose: [ "3010", "9736" ]
+    ports:
+      - "9735:9735"   # P2P
+      - "3010:3010"   # REST
+      - "9736:9736"   # gRPC (optional)
+
+# ─────────────────────────────  OPTIONAL UI  ─────────────────────
+  bitcoin_rtl:
+    image: shahanafarooqui/rtl:v0.15.4
+    restart: unless-stopped
+    environment:
+      LN_IMPLEMENTATION: CLN
+      CONFIG_PATH: /root/.lightning/config
+      LN_SERVER_URL: http://clightning_bitcoin:3010
+      RUNE_PATH: /root/.lightning/rune.env
+      RTL_CONFIG_PATH: /data/
+      BITCOIND_CONFIG_PATH: /etc/bitcoin/bitcoin.conf
+      RTL_SSO: 1
+      RTL_COOKIE_PATH: /data/.cookie
+    volumes:
+      - clightning_bitcoin_datadir:/root/.lightning
+      - bitcoin_datadir:/etc/bitcoin
+      - clightning_bitcoin_rtl_datadir:/data
+    expose: ["3000"]
+
+# ─────────────────────────────  DATABASE  ───────────────────────
+  postgres:
+    image: btcpayserver/postgres:13.18
+    container_name: generated_postgres_1
+    restart: unless-stopped
+    shm_size: 256mb
+    command: ["-c", "random_page_cost=1.0", "-c", "shared_preload_libraries=pg_stat_statements"]
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - postgres_datadir:/var/lib/postgresql/data
+
+# ─────────────────────────────  (OPTIONAL) BTCPAY IMAGE  ─────────
+# keep it for migrations & tooling; scale to 0 when bringing the stack up
+  # btcpayserver:
+  #   image: ${BTCPAY_IMAGE:-btcpayserver/btcpayserver:2.1.1}
+  #   container_name: generated_btcpayserver_1
+  #   restart: unless-stopped
+  #   environment:
+  #     BTCPAY_NETWORK: ${NBITCOIN_NETWORK:-mainnet}
+  #     BTCPAY_BIND: 0.0.0.0:49392
+  #     BTCPAY_POSTGRES: User ID=postgres;Host=postgres;Port=5432;Application Name=btcpayserver;Database=btcpayserver${NBITCOIN_NETWORK:-mainnet}
+  #     BTCPAY_EXPLORERPOSTGRES: User ID=postgres;Host=postgres;Port=5432;Application Name=btcpayserver;MaxPoolSize=80;Database=nbxplorer${NBITCOIN_NETWORK:-mainnet}
+  #     BTCPAY_CHAINS: "btc"
+  #     BTCPAY_BTCEXPLORERURL: http://nbxplorer:32838/
+  #     BTCPAY_BTCLIGHTNING: "type=clightning;server=http://clightning_bitcoin:3010/"
+  #   volumes:
+  #     - btcpay_datadir:/datadir
+  #     - nbxplorer_datadir:/root/.nbxplorer
+  #     - btcpay_pluginsdir:/root/.btcpayserver/Plugins
+  #     - clightning_bitcoin_datadir:/etc/clightning_bitcoin
+  #   links:
+  #     - postgres
+  #     - clightning_bitcoin
+  #   expose: ["49392"]
+  #   ports:
+  #     - "${NOREVERSEPROXY_HTTP_PORT:-14142}:49392"
+
+# ─────────────────────────────  VOLUMES  ─────────────────────────
+volumes:
+  btcpay_datadir:
+  btcpay_pluginsdir:
+  bitcoin_datadir:
+  bitcoin_wallet_datadir:
+  clightning_bitcoin_datadir:
+  clightning_bitcoin_rtl_datadir:
+  nbxplorer_datadir:
+  postgres_datadir:
+
+networks: {}
