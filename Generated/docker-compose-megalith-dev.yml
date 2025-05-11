@@ -104,6 +104,8 @@ services:
 # ─────────────────────────────  DATABASE  ───────────────────────
   postgres:
     image: btcpayserver/postgres:13.18
+    ports:
+      - "5432:5432"  
     container_name: generated_postgres_1
     restart: unless-stopped
     shm_size: 256mb
