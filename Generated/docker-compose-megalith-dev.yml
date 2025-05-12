@@ -1,4 +1,3 @@
-version: "3.8"
 
 services:
 # ─────────────────────────────  CORE  ─────────────────────────────
@@ -41,7 +40,7 @@ services:
       NBXPLORER_BTCRPCURL: http://bitcoind:43782/
       NBXPLORER_BTCNODEENDPOINT: bitcoind:39388
     volumes:
-      - nbxplorer_datadir:/datadir
+      - nbxplorer_cookie:/datadir 
       - bitcoin_datadir:/root/.bitcoin
     links:
       - postgres
@@ -143,6 +142,12 @@ services:
 
 # ─────────────────────────────  VOLUMES  ─────────────────────────
 volumes:
+  nbxplorer_cookie:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/data/nbxplorer    
   btcpay_datadir:
   btcpay_pluginsdir:
   bitcoin_datadir:
@@ -151,5 +156,6 @@ volumes:
   clightning_bitcoin_rtl_datadir:
   nbxplorer_datadir:
   postgres_datadir:
+  
 
 networks: {}

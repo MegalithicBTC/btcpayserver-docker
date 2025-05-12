@@ -305,3 +305,5 @@ Generated/error
 
 # DS_Store ignore
 .DS_Store
+data/nbxplorer/**/*.cookie
+data/nbxplorer/**/settings.config
