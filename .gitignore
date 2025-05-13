@@ -312,8 +312,9 @@ data/nbxplorer/**/settings.config
 # BTCPayServer-Docker runtime bind-mounts (Ubuntu dev setup)
 ###############################################################################
 # These are created the first time you run `docker compose up`.
-# They can grow very large and contain sensitive data (.cookie, DBs).
-data/nbxplorer_datadir/**
+# They can grow very large and contain sensitive data (.cookie, DBs, settings).
+data/nbxplorer_datadir/**/settings.config
+data/nbxplorer_datadir/**/.cookie
 data/clightning_bitcoin_datadir/**
 data/btcpay_datadir/**
 data/btcpay_pluginsdir/**
