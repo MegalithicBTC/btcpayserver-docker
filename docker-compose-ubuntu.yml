@@ -9,9 +9,10 @@ services:
     container_name: nginx
     restart: unless-stopped
     ports: ["80:80", "443:443"]
+    extra_hosts: ["host.docker.internal:host-gateway"]   # <-- NEW
     volumes:
       - nginx_conf:/etc/nginx/conf.d
-      - nginx_vhost:/etc/nginx/vhost.d
+      - ./vhost:/etc/nginx/vhost.d
       - nginx_html:/usr/share/nginx/html
       - nginx_certs:/etc/nginx/certs:ro
 
@@ -30,7 +31,7 @@ services:
       - /var/run/docker.sock:/tmp/docker.sock:ro
       - ./Generated/nginx.tmpl:/etc/docker-gen/templates/nginx.tmpl:ro
       - nginx_conf:/etc/nginx/conf.d
-      - nginx_vhost:/etc/nginx/vhost.d
+      - ./vhost:/etc/nginx/vhost.d
       - nginx_html:/usr/share/nginx/html
       - nginx_certs:/etc/nginx/certs:ro
     links: [nginx]
@@ -46,7 +47,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - nginx_conf:/etc/nginx/conf.d
-      - nginx_vhost:/etc/nginx/vhost.d
+      - ./vhost:/etc/nginx/vhost.d
       - nginx_html:/usr/share/nginx/html
       - nginx_certs:/etc/nginx/certs:rw
       - acme:/etc/acme.sh
@@ -90,7 +91,7 @@ services:
       # persist the entire ~/.bitcoin directory on the host
       - type: bind
         source: ./data/bitcoin_datadir
-        target: /data
+        target: /home/bitcoin/.bitcoin
       # keep wallets in a (small) named volume – change to a bind-mount if you prefer
       - bitcoin_wallet_datadir:/walletdata
 
@@ -169,13 +170,39 @@ services:
         source: ./data/bitcoin_datadir
         target: /etc/bitcoin
       - clightning_bitcoin_rtl_datadir:/data  # small, leave named
+###############################################################################
+#  helper service – advertises the domain to nginx-proxy & LE companion
+###############################################################################
+  btcpay-cert-helper:
+    image: alpine:3.19                # tiny, never really runs anything
+    container_name: btcpay-cert-helper
+    command: ["sh", "-c", "sleep infinity"]
+
+    # ---- HARD-CODED DOMAIN + contact email ----
+    environment:
+      VIRTUAL_HOST: btcpay-dev2.megalith-node.com
+      LETSENCRYPT_HOST: btcpay-dev2.megalith-node.com
+      LETSENCRYPT_EMAIL: info@megalithic.me     # <-- put your real address
+
+    # must share the same default network as nginx / companion / nginx-gen
+    networks:
+      - default
+  btcpay-dev2-vhost:
+    image: alpine:3.19
+    command: sleep infinity
+    extra_hosts: ["host.docker.internal:host-gateway"]   # <-- NEW
+    environment:
+      VIRTUAL_HOST_NAME: btcpay-dev2.megalith-node.com 
+      VIRTUAL_HOST: btcpay-dev2.megalith-node.com
+      VIRTUAL_PORT: "14142"
+      LETSENCRYPT_HOST: btcpay-dev2.megalith-node.com
+      LETSENCRYPT_EMAIL: info@megalithic.me
 
 ###############################################################################
 #  named volumes that stick around
 ###############################################################################
 volumes:
   nginx_conf:
-  nginx_vhost:
   nginx_html:
   nginx_certs:
   acme:

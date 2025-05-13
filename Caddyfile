@@ -1,0 +1,3 @@
+btcpay-dev2.megalith-node.com {
+    reverse_proxy 127.0.0.1:14142
+}
