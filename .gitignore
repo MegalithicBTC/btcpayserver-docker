@@ -305,8 +305,8 @@ Generated/error
 
 # DS_Store ignore
 .DS_Store
-data/nbxplorer/**/*.cookie
-data/nbxplorer/**/settings.config
+data/nbxplorer_datadir/**
+
 
 ###############################################################################
 # BTCPayServer-Docker runtime bind-mounts (Ubuntu dev setup)
