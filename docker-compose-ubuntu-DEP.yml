@@ -100,6 +100,7 @@ services:
     container_name: generated_nbxplorer_1
     restart: unless-stopped
     ports: ["32838:32838"]
+    user: "${UID}:${GID}" # 
     environment:
       NBXPLORER_NETWORK: mainnet
       NBXPLORER_BIND: 0.0.0.0:32838
