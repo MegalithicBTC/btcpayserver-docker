@@ -50,7 +50,7 @@ services:
       - bitcoin_wallet_datadir:/walletdata
 
   nbxplorer:
-    image: nicolasdorier/nbxplorer:2.5.25
+    image: nicolasdorier/nbxplorer:2.5.26
     container_name: generated_nbxplorer_1
     restart: unless-stopped
     ports: ["32838:32838"]
