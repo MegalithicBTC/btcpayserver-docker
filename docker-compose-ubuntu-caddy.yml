@@ -57,6 +57,7 @@ services:
     environment:
       NBXPLORER_NETWORK: mainnet
       NBXPLORER_BIND: 0.0.0.0:32838
+      NBXPLORER_COOKIEFILE: /datadir/.cookie 
       NBXPLORER_TRIMEVENTS: 10000
       NBXPLORER_SIGNALFILESDIR: /datadir
       NBXPLORER_POSTGRES: User ID=postgres;Host=postgres;Port=5432;Application Name=nbxplorer;MaxPoolSize=20;Database=nbxplorermainnet
